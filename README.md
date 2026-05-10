@@ -116,7 +116,7 @@ Once registered, the hook will **deny** MCP tool calls to servers not in this al
 
 ### Optional: hydrate registrations from Postgres
 
-For a **global** allowlist stored in PostgreSQL (same registrations for every Claude session), build `tools/agentlab-provider`, set `AGENTLAB_PG_DSN`, and run `agentlab-provider hydrate`, or rely on the **`SessionStart`** hook after `docker compose up`. See [`docs/environment-hydrate.md`](docs/environment-hydrate.md).
+For a **global** allowlist stored in PostgreSQL (same registrations for every Claude session), build `tools/agentlab-provider`, set `AGENTLAB_PG_DSN`, and run `agentlab-provider hydrate`, or rely on the **`SessionStart`** hook after `docker compose up` (the hook also **`session-record`**s Claude session metadata into **`agentlab_sessions`**). See [`docs/environment-hydrate.md`](docs/environment-hydrate.md).
 
 ### Postgres MCP (Claude Code + Docker Compose)
 
@@ -192,7 +192,7 @@ Cursor includes a pointer skill at `.cursor/skills/agentlab/SKILL.md` which poin
 ## Repository layout
 
 - `.claude-plugin/`: `plugin.json` + `marketplace.json` so Claude Code can install via `/plugin marketplace add kumarabd/superagents`
-- `tools/agentlab-provider/`: Go CLI that hydrates global registrations into `.agentlab/context.json`
+- `tools/agentlab-provider/`: Go CLI (`hydrate`, **`session-record`**, `ping`) backed by the environment Postgres on **5433**
 - `skills/agentlab/SKILL.md`: orchestrator policy (manager loop, dispatch rules)
 - `agents/*.md`: specialist agents (frontmatter + full playbooks)
 - `schemas/`, `templates/`: engagement notebook schema + seed

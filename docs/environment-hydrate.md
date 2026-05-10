@@ -2,7 +2,17 @@
 
 AgentLab can load **datalake** and **catalog** registrations from PostgreSQL and merge them into `.agentlab/context.json`. This keeps the same contract as manual registration ([`schemas/context.schema.json`](../schemas/context.schema.json)): [`hooks/scripts/policy-check.sh`](../hooks/scripts/policy-check.sh) and the skill still read **`data_sources[]`** and **`catalogs[]`** from the file.
 
-**Merge semantics:** hydrate **replaces** `data_sources[]` and `catalogs[]` with the rows from Postgres (authoritative DB). Other top‑level JSON keys are **preserved** when the file already exists. If **`context.json` is missing**, hydrate can **seed** from [`templates/context.init.json`](../templates/context.init.json) via **`--template`** / **`AGENTLAB_CONTEXT_TEMPLATE`**, then merge the DB fields—see `agentlab-provider hydrate --help`.
+**Merge semantics:** Postgres still only supplies **`data_sources[]`** and **`catalogs[]`**. Those are **merged by `id`** with the file (file-only ids stay; same **`id`** → **DB wins**; new DB ids added). After that, hydrate **normalizes every top-level array** in the notebook (dedupe + stable sort) using these keys:
+
+| Array | Merge / dedupe key |
+|--------|-------------------|
+| `data_sources`, `catalogs`, `hypotheses`, `experiments` | `id` |
+| `artifacts` | `path` |
+| `findings` | composite: `question` and `timestamp` (both required by schema) |
+| `semantic_links` | composite: `from`, `to`, `kind` |
+| `open_questions` | string value (unique, sorted) |
+
+Objects without a stable key are kept at the **end** of object arrays (unchanged order among orphans). Other top‑level JSON keys (`preferences`, `term_cache`, …) are **unchanged**. If **`context.json` is missing**, hydrate seeds from [`templates/context.init.json`](../templates/context.init.json) via **`--template`** / **`AGENTLAB_CONTEXT_TEMPLATE`**—see `agentlab-provider hydrate --help`.
 
 For how registrations relate to episodic/semantic memory in the notebook, see [`docs/context-and-memory.md`](context-and-memory.md).
 
@@ -130,12 +140,13 @@ If you run a **custom multi-DB gateway MCP**, register **one** MCP server in Cla
 
 [`hooks/hooks.json`](../hooks/hooks.json) runs [`hooks/scripts/session-hydrate.sh`](../hooks/scripts/session-hydrate.sh) on **`startup`** and **`resume`**.
 
+- **Session registry:** After hydrate, the script pipes the **hook JSON on stdin** to **`agentlab-provider session-record`**, which **upserts** a row into **`agentlab_sessions`** (same Postgres as hydrate). Payload includes **`session_id`**, **`source`** (`startup`, `resume`, `clear`, `compact`), **`cwd`**, **`transcript_path`**, **`model`**, optional **`agent_type`**, plus a **`hook_payload`** JSONB snapshot. See Claude’s [SessionStart input](https://docs.anthropic.com/en/docs/claude-code/hooks#sessionstart). If **`session-record` fails**, stderr logs **non-fatal** and Claude still starts (**`hydrate` exit code** is still respected as the hook exit status).
 - **Scaffold:** the script creates **`$CLAUDE_PROJECT_DIR/.agentlab/artifacts/`** (queries, results, scripts, models, reports, plans, critiques, visualizations), **`snapshots/`**, before calling hydrate—so hydrate can create **`context.json`** on first run without the AgentLab skill.
-- **`context.json` present:** hydrate merges **`data_sources[]`** / **`catalogs[]`** from Postgres into the existing file (other keys unchanged).
+- **`context.json` present:** hydrate **upserts Postgres into `data_sources[]` / `catalogs[]`**, then **dedupes + sorts all notebook arrays** listed in the merge table above (unchanged keys: `preferences`, `term_cache`, …).
 - **`context.json` absent:** hydrate seeds from **`templates/context.init.json`**. The hook resolves `--template` in order: **`AGENTLAB_CONTEXT_TEMPLATE`** (must exist when set), else **`${CLAUDE_PLUGIN_ROOT}/templates/context.init.json`**, else this repo relative to [`session-hydrate.sh`](../hooks/scripts/session-hydrate.sh). If no template path exists and `context.json` is missing, hydrate fails loudly (needs a plugin checkout or **`AGENTLAB_CONTEXT_TEMPLATE`**).
 - **Fail-open:** if `AGENTLAB_PG_DSN` is unset, or the `agentlab-provider` binary cannot be found, the script exits **0** and logs one line to stderr so Claude still starts.
 - **Binary resolution:** set **`AGENTLAB_PROVIDER_BIN`** to the built executable (legacy: **`AGENTLAB_ENV_BIN`** is still honored by the hook), or place the binary at **`tools/agentlab-provider/agentlab-provider`** inside the plugin/repo checkout, or install `agentlab-provider` on `PATH`.
-- Hook stdin carries Claude session fields (`session_id`, `cwd`, …); **v1 hydrate does not use them** for SQL—only **`CLAUDE_PROJECT_DIR`** (or hook `cwd`) picks the project for `context.json`.
+- The hook reads **stdin once** into **`hook_json`**. **`CLAUDE_PROJECT_DIR`** wins for the workspace root; otherwise **`cwd`** from the JSON (**`jq`**) selects **`project-dir`** for both hydrate and **`session-record`**. [`agentlab_sessions`](../infra/postgres/init/003_sessions.sql) is created only when init scripts run (**new volume**); existing DBs should apply **`003_sessions.sql`** manually (below).
 - **Debug:** set **`AGENTLAB_HYDRATE_DEBUG=1`** in the environment that **launches** Claude Code (same process tree as hooks). The hook then prints **`agentlab session-hydrate[debug]: …`** lines to **stderr** for each step (DSN, binary path, `CLAUDE_PROJECT_DIR`, template, command). On success, hydrate itself is still quiet aside from those debug lines.
 
 ### Troubleshooting: “hydrate never seems to run”
@@ -156,11 +167,47 @@ If you run a **custom multi-DB gateway MCP**, register **one** MCP server in Cla
    export AGENTLAB_PG_DSN='postgresql://agentlab:agentlab_local_change_me@127.0.0.1:5433/agentlab_environment'
    export CLAUDE_PLUGIN_ROOT=/path/to/plugin-or-repo-with-.claude-plugin
    export AGENTLAB_HYDRATE_DEBUG=1
-   export CLAUDE_PROJECT_DIR=/path/to/workspace-with-or-without-.agentlab
-   bash "$CLAUDE_PLUGIN_ROOT/hooks/scripts/session-hydrate.sh"
+   export CLAUDE_PROJECT_DIR=/path/to/workspace-with-or-without-.agentlab   # required for manual shell runs
+   bash "$CLAUDE_PLUGIN_ROOT/hooks/scripts/session-hydrate.sh" <<'EOF'
+   {"session_id":"dev","cwd":"/path/to/project","hook_event_name":"SessionStart","source":"startup"}
+   EOF
    ```
 
+   Omitting **`CLAUDE_PROJECT_DIR`** without synthetic stdin leaves **hook JSON empty**—hydrate may still run if you set **`CLAUDE_PROJECT_DIR`**, but **`session-record`** is skipped until real SessionStart stdin is supplied.
+
 7. **Hook path uses `${CLAUDE_PLUGIN_ROOT}`.** That is set by Claude Code for **plugin-managed** hooks. If you only use project hooks, **`CLAUDE_PLUGIN_ROOT`** may differ or be unset—point **`AGENTLAB_PROVIDER_BIN`** at a built binary and ensure **`CLAUDE_PROJECT_DIR`** is set.
+
+8. **`connect: connection refused` on `127.0.0.1:5433`:** Postgres must listen on the **host**. Run `docker ps --format 'table {{.Names}}\t{{.Ports}}'` — you need **`0.0.0.0:5433->5432/tcp`** (or similar) on **`agentlab-environment-postgres`**. If you only see **`5432/tcp`** with no published port, Compose did not bind the port (wrong compose file, or containers started with plain **`docker run`** without **`-p`**) — bring the stack down and up from repo root per [`docker-compose.yml`](../docker-compose.yml).
+
+9. **`context.json` never gains rows but “data is in Postgres”:** Registrations live only on **`agentlab_environment`** (Compose **5433**), in tables **`agentlab_data_sources`** / **`agentlab_catalogs`**. The **pgvector** DB on **5434** (`agentlab_vectors`) does **not** contain those tables—pointing **`AGENTLAB_PG_DSN`** there yields **zero rows** and a silent-looking no-op merge. Confirm with psql:
+
+   ```bash
+   psql 'postgresql://agentlab:agentlab_local_change_me@127.0.0.1:5433/agentlab_environment' \
+     -c 'SELECT COUNT(*) FROM agentlab_data_sources; SELECT COUNT(*) FROM agentlab_catalogs;'
+   ```
+
+   Rebuild **`agentlab-provider`** after pulling changes (`go build ...`). Run with **`AGENTLAB_HYDRATE_DEBUG=1`** to print row counts merged from Postgres and array lengths written to **`context.json`**.
+
+10. **`relation "agentlab_sessions" does not exist`:** Init scripts run **only on first Postgres volume creation**. Existing volumes need the DDL applied once:
+
+   ```bash
+   psql "$AGENTLAB_PG_DSN" -v ON_ERROR_STOP=1 -f infra/postgres/init/003_sessions.sql
+   ```
+
+### Session registry DDL
+
+[`infra/postgres/init/003_sessions.sql`](../infra/postgres/init/003_sessions.sql) defines **`agentlab_sessions`**. Inspect rows:
+
+```bash
+psql "$AGENTLAB_PG_DSN" -c 'SELECT session_id, session_source, project_dir, updated_at FROM agentlab_sessions ORDER BY updated_at DESC LIMIT 10;'
+```
+
+Manual **`session-record`** (stdin must be SessionStart-shaped JSON):
+
+```bash
+printf '%s\n' '{"session_id":"test","cwd":"/tmp","hook_event_name":"SessionStart","source":"startup","model":"claude-sonnet"}' \
+  | ./tools/agentlab-provider/agentlab-provider session-record --project-dir /tmp
+```
 
 ## Validation
 
@@ -177,5 +224,6 @@ jsonschema -i .agentlab/context.json schemas/context.schema.json
 | [`docker-compose.yml`](../docker-compose.yml) | Environment Postgres + pgvector |
 | [`docs/claude-mcp-postgres.md`](claude-mcp-postgres.md) | `claude mcp add` + [`tools/mcp-postgres-environment.sh`](../tools/mcp-postgres-environment.sh) / [`tools/mcp-postgres-pgvector-catalog.sh`](../tools/mcp-postgres-pgvector-catalog.sh) |
 | [`infra/postgres/init/001_environment_schema.sql`](../infra/postgres/init/001_environment_schema.sql) | Registration DDL |
+| [`infra/postgres/init/003_sessions.sql`](../infra/postgres/init/003_sessions.sql) | SessionStart registry (`agentlab_sessions`) |
 | [`infra/postgres-pgvector/init/001_enable_vector.sql`](../infra/postgres-pgvector/init/001_enable_vector.sql) | `CREATE EXTENSION vector` |
 | [`tools/agentlab-provider/`](../tools/agentlab-provider/) | Go CLI (`urfave/cli/v2`, `pgx`) |

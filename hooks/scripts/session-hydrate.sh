@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# SessionStart hook: hydrate global registrations into .agentlab/context.json.
-# Fail-open if DSN or binary missing. Session metadata from stdin is not used for SQL (v1).
+# SessionStart hook: hydrate .agentlab/context.json, then upsert SessionStart JSON into Postgres (agentlab_sessions).
+# Fail-open if DSN or binary missing. Reads hook payload from stdin once; never blocks on jq + TTY.
 #
-# If context.json exists: merge data_sources + catalogs from Postgres (other keys untouched).
-# If missing: hydrate seeds from templates/context.init.json (--template), then merges from DB.
+# Hydrate merges DB registrations + normalizes notebook arrays; session-record stores session_id, source, cwd, etc.
 
 set -uo pipefail
+
+hook_json=""
+if [[ ! -t 0 ]]; then
+  hook_json="$(cat)" || true
+fi
 
 debug() {
   if [[ "${AGENTLAB_HYDRATE_DEBUG:-}" == "1" ]]; then
@@ -13,10 +17,11 @@ debug() {
   fi
 }
 
-debug "started (SessionStart hydrate hook)"
+debug "started (SessionStart hydrate + session-record)"
+debug "hook stdin bytes=${#hook_json}"
 
 if [[ -z "${AGENTLAB_PG_DSN:-}" ]]; then
-  echo "agentlab session-hydrate: AGENTLAB_PG_DSN unset; skipping hydrate." >&2
+  echo "agentlab session-hydrate: AGENTLAB_PG_DSN unset; skipping hydrate and session-record." >&2
   exit 0
 fi
 debug "AGENTLAB_PG_DSN is set (length=${#AGENTLAB_PG_DSN})"
@@ -41,12 +46,12 @@ fi
 debug "binary: $BIN"
 
 project_dir="${CLAUDE_PROJECT_DIR:-}"
-if [[ -z "$project_dir" ]] && command -v jq >/dev/null 2>&1; then
-  project_dir="$(jq -r '.cwd // empty')"
+if [[ -z "$project_dir" ]] && command -v jq >/dev/null 2>&1 && [[ -n "$hook_json" ]]; then
+  project_dir="$(printf '%s' "$hook_json" | jq -r '.cwd // empty')"
 fi
 
 if [[ -z "$project_dir" ]]; then
-  echo "agentlab session-hydrate: CLAUDE_PROJECT_DIR unset and hook cwd missing; skipping hydrate." >&2
+  echo "agentlab session-hydrate: CLAUDE_PROJECT_DIR unset and hook cwd missing; skipping hydrate and session-record." >&2
   exit 0
 fi
 debug "project_dir=$project_dir CLAUDE_PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT:-<empty>}"
@@ -76,4 +81,17 @@ else
 fi
 
 debug "running: $BIN hydrate --project-dir $project_dir (${#extra[@]} extra args)"
-exec "$BIN" hydrate "${extra[@]}" --project-dir "${project_dir}"
+"$BIN" hydrate "${extra[@]}" --project-dir "${project_dir}"
+hydrate_rc=$?
+
+if [[ -n "$hook_json" ]]; then
+  if printf '%s' "$hook_json" | "$BIN" session-record --project-dir "${project_dir}"; then
+    debug "session-record ok"
+  else
+    echo "agentlab session-hydrate: session-record failed (non-fatal)" >&2
+  fi
+else
+  debug "empty hook JSON; skipping session-record (manual run?)"
+fi
+
+exit "$hydrate_rc"

@@ -2,8 +2,18 @@
 #
 #   docker compose up -d
 #
+# Verify ports are published on the host (required for 127.0.0.1:5433 hydrate / MCP):
+#
+#   docker ps --format 'table {{.Names}}\t{{.Ports}}'
+#
+# You should see e.g. `0.0.0.0:5433->5432/tcp` for agentlab-environment-postgres.
+# If you only see `5432/tcp` with no `0.0.0.0:5433->`, the DB is not reachable from
+# macOS — recreate from this file: `docker compose down` then `docker compose up -d`
+# (from repo root). Old `docker run ...` containers omit host ports by default.
+#
 # - postgres-environment — hydrate / registration tables (5433). Init SQL includes
-#   baseline rows in agentlab_data_sources / agentlab_catalogs (see infra/postgres/init/002_*).
+#   baseline rows in agentlab_data_sources / agentlab_catalogs (see infra/postgres/init/002_*),
+#   and agentlab_sessions for SessionStart metadata (infra/postgres/init/003_sessions.sql).
 # - postgres-pgvector    — pgvector catalog DB (5434).
 #
 # Register MCP in Claude Code with `claude mcp add` pointing at
