@@ -17,7 +17,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:  "hydrate",
-				Usage: "Merge global agentlab_* registrations into .agentlab/context.json",
+				Usage: "Merge Postgres agentlab_* rows into context.json data_sources/catalogs (replace). Seeds from --template when context.json is missing.",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "project-dir",
@@ -29,6 +29,12 @@ func main() {
 						Name:    "context-path",
 						Aliases: []string{"c"},
 						Usage:   "override path to context.json",
+					},
+					&cli.StringFlag{
+						Name:    "template",
+						Aliases: []string{"t"},
+						Usage:   "context seed JSON when .agentlab/context.json is absent (defaults: $AGENTLAB_CONTEXT_TEMPLATE, else ignored if file exists)",
+						EnvVars: []string{"AGENTLAB_CONTEXT_TEMPLATE"},
 					},
 					&cli.BoolFlag{
 						Name:  "dry-run",
@@ -49,7 +55,7 @@ func main() {
 					if ctxPath == "" {
 						ctxPath = fmt.Sprintf("%s/.agentlab/context.json", projectDir)
 					}
-					return hydrate.Run(context.Background(), dsn, ctxPath, c.Bool("dry-run"))
+					return hydrate.Run(context.Background(), dsn, ctxPath, c.String("template"), c.Bool("dry-run"))
 				},
 			},
 			{

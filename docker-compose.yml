@@ -2,7 +2,8 @@
 #
 #   docker compose up -d
 #
-# - postgres-environment — hydrate / registration tables (5433).
+# - postgres-environment — hydrate / registration tables (5433). Init SQL includes
+#   baseline rows in agentlab_data_sources / agentlab_catalogs (see infra/postgres/init/002_*).
 # - postgres-pgvector    — pgvector catalog DB (5434).
 #
 # Register MCP in Claude Code with `claude mcp add` pointing at

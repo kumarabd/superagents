@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -14,8 +15,9 @@ import (
 )
 
 // Run loads all global registrations from Postgres and merges data_sources and catalogs
-// into contextPath. Other top-level keys are preserved. Writes atomically unless dryRun.
-func Run(ctx context.Context, dsn, contextPath string, dryRun bool) error {
+// into contextPath. Other top-level keys are preserved on update. When contextPath is missing,
+// if templatePath is non-empty Run seeds from that JSON file before merging. Writes atomically unless dryRun.
+func Run(ctx context.Context, dsn, contextPath, templatePath string, dryRun bool) error {
 	if dsn == "" {
 		return errors.New("AGENTLAB_PG_DSN is empty")
 	}
@@ -36,10 +38,17 @@ func Run(ctx context.Context, dsn, contextPath string, dryRun bool) error {
 
 	data, err := os.ReadFile(contextPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("context file missing: %s (bootstrap with templates/context.init.json first)", contextPath)
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("read context: %w", err)
 		}
-		return fmt.Errorf("read context: %w", err)
+		if strings.TrimSpace(templatePath) == "" {
+			return fmt.Errorf("context file missing %s: set hydrate --template or AGENTLAB_CONTEXT_TEMPLATE to templates/context.init.json", contextPath)
+		}
+		tpl, err := os.ReadFile(templatePath)
+		if err != nil {
+			return fmt.Errorf("read template %s: %w", templatePath, err)
+		}
+		data = tpl
 	}
 
 	var doc map[string]interface{}
@@ -147,6 +156,9 @@ func loadCatalogs(ctx context.Context, pool *pgxpool.Pool) ([]interface{}, error
 
 func atomicWrite(contextPath string, data []byte) error {
 	dir := filepath.Dir(contextPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("mkdir parent of context: %w", err)
+	}
 	tmp := filepath.Join(dir, fmt.Sprintf(".context.json.hydrate.%d.tmp", time.Now().UnixNano()))
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return fmt.Errorf("write temp context: %w", err)

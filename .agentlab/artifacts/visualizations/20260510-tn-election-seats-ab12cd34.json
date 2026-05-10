@@ -1,0 +1,43 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "title": "Tamil Nadu 2026 Assembly Election — Seat Distribution",
+  "width": 500,
+  "height": 300,
+  "layer": [
+    {
+      "mark": {"type": "bar", "cornerRadiusEnd": 4},
+      "data": {
+        "values": [
+          {"party": "TVK (Vijay)", "seats": 108, "color": "#FF6B00"},
+          {"party": "DMK Alliance", "seats": 73, "color": "#E63B2E"},
+          {"party": "AIADMK Alliance", "seats": 53, "color": "#2D9CDB"},
+          {"party": "Others", "seats": 0, "color": "#828282"}
+        ]
+      },
+      "encoding": {
+        "x": {"field": "party", "type": "nominal", "axis": {"title": "Party / Alliance", "labelAngle": -10}},
+        "y": {"field": "seats", "type": "quantitative", "axis": {"title": "Seats Won"}, "scale": {"domain": [0, 130]}},
+        "color": {"field": "color", "type": "nominal", "scale": null, "legend": null},
+        "tooltip": [
+          {"field": "party", "type": "nominal", "title": "Party"},
+          {"field": "seats", "type": "quantitative", "title": "Seats"}
+        ]
+      }
+    },
+    {
+      "mark": {"type": "rule", "color": "black", "strokeDash": [6, 3], "strokeWidth": 2},
+      "data": {"values": [{"threshold": 118}]},
+      "encoding": {
+        "y": {"field": "threshold", "type": "quantitative"}
+      }
+    },
+    {
+      "mark": {"type": "text", "align": "left", "dx": 10, "dy": -5, "text": "Majority (118)", "color": "black", "fontSize": 12},
+      "data": {"values": [{"threshold": 118, "x_pos": "AIADMK Alliance"}]},
+      "encoding": {
+        "y": {"field": "threshold", "type": "quantitative"},
+        "x": {"field": "x_pos", "type": "nominal"}
+      }
+    }
+  ]
+}

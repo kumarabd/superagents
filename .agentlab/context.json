@@ -1,0 +1,55 @@
+{
+  "use_case": "Tamil Nadu Political Analytics",
+  "data_sources": [
+    {
+      "id": "web_search",
+      "type": "web",
+      "description": "Live web search via WebSearch tool — news, Wikipedia, ECI official results",
+      "registered_at": "2026-05-10T16:25:00Z"
+    }
+  ],
+  "catalogs": [],
+  "term_cache": {
+    "TVK": "Tamilaga Vettri Kazhagam — political party founded by actor Vijay on 2 Feb 2024",
+    "Thalapathy": "Fan title for actor Vijay (Joseph Vijay), meaning 'commander'",
+    "SPA": "Secular Progressive Alliance — DMK-led coalition in Tamil Nadu",
+    "VCK": "Viduthalai Chiruthaigal Katchi — Dalit rights party led by Thirumavalavan",
+    "IUML": "Indian Union Muslim League",
+    "Dravidian duopoly": "59-year alternating power between DMK and AIADMK (1967–2026)",
+    "Kolathur": "Chennai constituency held by MK Stalin since 2011; lost to TVK's VS Babu in 2026"
+  },
+  "concept_mapping": {},
+  "preferences": {
+    "row_cap": 100,
+    "critic_threshold": "auto"
+  },
+  "findings": [
+    {
+      "id": "f001",
+      "question": "How did Thalapathy Vijay become CM of Tamil Nadu?",
+      "answer_summary": "TVK won 108/234 seats in its debut election (May 2026), breaking 59-year Dravidian duopoly. Vijay formed a 120-MLA coalition (TVK+INC+VCK+Left+IUML) and was sworn in as CM on 10 May 2026.",
+      "artifacts": [
+        ".agentlab/artifacts/reports/20260510-tn-elections-narrative-ab12cd34.md",
+        ".agentlab/artifacts/visualizations/20260510-tn-election-seats-ab12cd34.json"
+      ],
+      "sources": ["Wikipedia", "DD News", "Deccan Herald", "GK365", "StudyIQ"],
+      "created_at": "2026-05-10T16:25:00Z",
+      "critic_verdict": "pending"
+    }
+  ],
+  "open_hypotheses": [],
+  "artifacts": [
+    {
+      "id": "a001",
+      "type": "report",
+      "path": ".agentlab/artifacts/reports/20260510-tn-elections-narrative-ab12cd34.md",
+      "created_at": "2026-05-10T16:25:00Z"
+    },
+    {
+      "id": "a002",
+      "type": "visualization",
+      "path": ".agentlab/artifacts/visualizations/20260510-tn-election-seats-ab12cd34.json",
+      "created_at": "2026-05-10T16:25:00Z"
+    }
+  ]
+}

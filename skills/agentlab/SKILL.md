@@ -70,7 +70,7 @@ Spawn by `name`. Bundled paths: `${CLAUDE_PLUGIN_ROOT}/agents/<file>.md` (Claude
 In the **user's project root**:
 
 1. Ensure exist: `.agentlab/`, `.agentlab/artifacts/{queries,models,reports,plans,critiques,visualizations}/`, optional `snapshots/`.
-2. If `.agentlab/context.json` missing, copy `templates/context.init.json` → `.agentlab/context.json` (validate against `schemas/context.schema.json`).
+2. If `.agentlab/context.json` missing, copy `templates/context.init.json` → `.agentlab/context.json` **or** reuse the notebook already seeded by **`SessionStart` hydrate** (same template + Postgres merge). Validate against `schemas/context.schema.json` when creating manually.
 3. Load **this skill** + skim `context.json` (`use_case`, `data_sources`, `catalogs`, `term_cache`, `preferences`, recent `findings`, open `hypotheses`).
 4. Load **policies**: `policies/pii.md`, `policies/access.md`. Apply on every dispatch.
 5. Validate every `mcp_server` referenced in registrations is loaded; otherwise route to `discovery`.
