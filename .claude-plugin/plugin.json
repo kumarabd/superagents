@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "agentlab",
+  "version": "0.1.0",
+  "description": "AgentLab — agentic analytics over MCP datalakes and catalogs (orchestrator skill, specialists, hooks).",
+  "author": {
+    "name": "kumarabd",
+    "url": "https://github.com/kumarabd"
+  },
+  "homepage": "https://github.com/kumarabd/superagents",
+  "repository": "https://github.com/kumarabd/superagents",
+  "license": "MIT"
+}

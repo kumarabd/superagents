@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgentLab context.json explorer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="hdr">
+      <h1>AgentLab notebook explorer</h1>
+      <p class="muted">
+        Load <code>.agentlab/context.json</code> — environment vs retained memory at a glance.
+      </p>
+      <div class="load-tools">
+        <label class="btn-file">
+          <input type="file" id="fileInput" accept=".json,application/json" aria-label="Choose context JSON file" />
+          Choose file
+        </label>
+        <details class="paste-box">
+          <summary>Paste JSON</summary>
+          <textarea id="pasteArea" rows="6" placeholder="{ ... }"></textarea>
+          <button type="button" id="pasteLoadBtn">Load from paste</button>
+        </details>
+        <span id="loadStatus" class="muted" aria-live="polite"></span>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Main sections">
+      <button type="button" role="tab" aria-selected="true" aria-controls="panel-env" id="tab-env" tabindex="0">
+        Preferences &amp; environment
+      </button>
+      <button type="button" role="tab" aria-selected="false" aria-controls="panel-mem" id="tab-mem">
+        Memory
+      </button>
+    </nav>
+
+    <main>
+      <section id="panel-env" role="tabpanel" aria-labelledby="tab-env" tabindex="0" class="panel active">
+        <div id="envMount"></div>
+      </section>
+      <section id="panel-mem" role="tabpanel" aria-labelledby="tab-mem" tabindex="0" class="panel" hidden>
+        <nav class="subnav memory-subnav" aria-label="Memory subsections">
+          <a href="#episodic">Episodic</a>
+          <a href="#semantic">Semantic</a>
+          <a href="#index">Index &amp; runs</a>
+        </nav>
+        <div id="memMount"></div>
+      </section>
+    </main>
+
+    <div id="modal" class="modal" hidden aria-modal="true" role="dialog" aria-labelledby="modalTitle">
+      <div class="modal-inner">
+        <button type="button" class="modal-close" aria-label="Close">&times;</button>
+        <h2 id="modalTitle">Finding</h2>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

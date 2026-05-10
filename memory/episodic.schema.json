@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentlab/memory/episodic.schema.json",
+  "title": "AgentLab episodic memory entry",
+  "description": "One per question-answer episode. Lives inside context.json findings[]; this schema documents the canonical shape and is referenced by tooling.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["question", "answer", "artifacts", "timestamp"],
+  "properties": {
+    "question": { "type": "string" },
+    "answer": { "type": "string" },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Paths under .agentlab/artifacts/."
+    },
+    "catalog_evidence": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "hypothesis_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "agents_used": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Subagent names dispatched during this episode."
+    },
+    "critic_verdict": {
+      "type": "string",
+      "enum": ["pass", "revise", "reject"]
+    },
+    "critique_artifact": { "type": "string" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "superseded_by": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

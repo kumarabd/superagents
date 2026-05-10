@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentlab/memory/semantic.schema.json",
+  "title": "AgentLab semantic memory",
+  "description": "Long-lived workspace concepts: term resolutions, concept→lake expression mappings, hypotheses, semantic links. Backed by sibling fields inside context.json (term_cache, concept_mapping, hypotheses, semantic_links).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "term_cache": {
+      "type": "object",
+      "description": "Stable term → canonical resolution. Written by domain-specialist, merged by manager.",
+      "additionalProperties": { "type": "string" }
+    },
+    "concept_mapping": {
+      "type": "object",
+      "description": "concept → { datalake_id → expression hint }. Written by query agent.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "statement", "status", "created_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "statement": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["open", "confirmed", "rejected", "inconclusive"]
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "origin_agent": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "resolved_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "semantic_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "kind"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "kind": { "type": "string" },
+          "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+          "evidence": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

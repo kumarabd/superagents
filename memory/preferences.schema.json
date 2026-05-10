@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentlab/memory/preferences.schema.json",
+  "title": "AgentLab preferences memory",
+  "description": "Workspace and per-user preferences guiding manager + agent behavior. Persisted under context.json#/preferences.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "default_time_window": {
+      "type": "string",
+      "description": "e.g. last_7_days, last_5_gameweeks, fiscal_quarter."
+    },
+    "audience": {
+      "type": "string",
+      "enum": ["executive", "analyst", "engineer", "researcher", "mixed"],
+      "description": "Drives narrative tone and depth."
+    },
+    "row_cap": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000,
+      "default": 100
+    },
+    "preferred_chart_kinds": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "tone": {
+      "type": "string",
+      "enum": ["concise", "detailed", "narrative"]
+    },
+    "critic_threshold": {
+      "type": "string",
+      "enum": ["always", "default", "never"],
+      "description": "When to dispatch the critic agent."
+    },
+    "pii_strictness": {
+      "type": "string",
+      "enum": ["strict", "default", "lenient"],
+      "description": "Tightens or loosens policies/pii.md enforcement at the manager level."
+    },
+    "language": {
+      "type": "string",
+      "description": "ISO code or language label for narrative output."
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.ai/claude-code/marketplace.schema.json",
+  "name": "superagents",
+  "description": "AgentLab marketplace (agentic analytics for Claude Code).",
+  "owner": {
+    "name": "kumarabd",
+    "url": "https://github.com/kumarabd"
+  },
+  "plugins": [
+    {
+      "name": "agentlab",
+      "source": "./",
+      "description": "AgentLab — orchestrator skill, specialists, policies, and hooks for MCP-backed analytics.",
+      "homepage": "https://github.com/kumarabd/superagents",
+      "repository": "https://github.com/kumarabd/superagents.git",
+      "license": "MIT"
+    }
+  ]
+}

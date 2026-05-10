@@ -1,0 +1,60 @@
+# Two Postgres instances (host ports 5433 and 5434).
+#
+#   docker compose up -d
+#
+# - postgres-environment — hydrate / registration tables (5433).
+# - postgres-pgvector    — pgvector catalog DB (5434).
+#
+# Register MCP in Claude Code with `claude mcp add` pointing at
+# 127.0.0.1:5433 and 127.0.0.1:5434 (see docs/claude-mcp-postgres.md).
+# Optional: use Docker network `agentlab` for `docker run --network` MCP (no local Node).
+
+networks:
+  agentlab:
+    name: agentlab
+    driver: bridge
+
+services:
+  postgres-environment:
+    image: postgres:16-alpine
+    container_name: agentlab-environment-postgres
+    restart: unless-stopped
+    networks: [agentlab]
+    environment:
+      POSTGRES_USER: agentlab
+      POSTGRES_PASSWORD: agentlab_local_change_me
+      POSTGRES_DB: agentlab_environment
+    ports:
+      - "5433:5432"
+    volumes:
+      - agentlab_environment_pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentlab -d agentlab_environment"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: agentlab-pgvector-postgres
+    restart: unless-stopped
+    networks: [agentlab]
+    environment:
+      POSTGRES_USER: agentlab
+      POSTGRES_PASSWORD: agentlab_local_change_me
+      POSTGRES_DB: agentlab_vectors
+    ports:
+      - "5434:5432"
+    volumes:
+      - agentlab_pgvector_pgdata:/var/lib/postgresql/data
+      - ./infra/postgres-pgvector/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentlab -d agentlab_vectors"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  agentlab_environment_pgdata:
+  agentlab_pgvector_pgdata:

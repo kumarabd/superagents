@@ -1,0 +1,6 @@
+-- Optional dev examples (comment out or delete in production).
+-- INSERT INTO agentlab_data_sources (registration_id, exec_paradigm, mcp_server, purpose, tags)
+-- VALUES ('example_lake', 'sql', 'postgres-dev', 'Example warehouse', ARRAY['readonly']);
+--
+-- INSERT INTO agentlab_catalogs (registration_id, retrieval, mcp_server, scope, purpose, tags)
+-- VALUES ('example_catalog', 'vector', 'postgres-pgvector-catalog', 'docs', 'Glossary chunks (pgvector)', ARRAY[]::text[]);
