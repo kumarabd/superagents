@@ -9,6 +9,7 @@
   "plugins": [
     {
       "name": "agentlab",
+      "version": "0.1.1",
       "source": "./",
       "description": "AgentLab — orchestrator skill, specialists, policies, and hooks for MCP-backed analytics.",
       "homepage": "https://github.com/kumarabd/superagents",

@@ -68,6 +68,14 @@ claude plugin install agentlab@superagents --scope user
 
 The marketplace **`name`** in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) is **`superagents`**; the plugin id is **`agentlab`**, so the install selector is **`agentlab@superagents`**.
 
+**Version in Claude still shows the old number?** The running plugin is a **copy under `~/.claude/plugins/cache/`**, not your working tree. After you change **`version`** in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json), keep **`plugins[].version`** in **`marketplace.json`** in sync, **push to GitHub**, then refresh the install:
+
+```bash
+claude plugin update agentlab --scope user
+```
+
+Restart Claude Code (or **`/reload-plugins`**) so the new **`plugin.json`** is picked up. If you installed with **`claude plugin install "$(pwd)" --scope local`**, run that again from the updated clone (or switch to the GitHub marketplace flow above).
+
 **Shorthand:** if your Claude build supports org/repo shortcuts, **`kumarabd/superagents`** may work the same as the **`https://github.com/kumarabd/superagents.git`** URL for **`marketplace add`**.
 
 Use **`user`**, **`project`**, or **`local`** scope depending on whether the plugin should apply globally, per committed project config, or a single checkout.
