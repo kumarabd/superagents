@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentlab/memory/semantic.schema.json",
   "title": "AgentLab semantic memory",
-  "description": "Long-lived workspace concepts: term resolutions, concept→lake expression mappings, hypotheses, semantic links. Backed by sibling fields inside context.json (term_cache, concept_mapping, hypotheses, semantic_links).",
+  "description": "Long-lived workspace concepts: term resolutions, concept→lake expression mappings, hypotheses, semantic links. Backed by the notebook payload (MCP notebook.load): term_cache, concept_mapping, hypotheses, semantic_links.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

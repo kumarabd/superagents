@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentlab/memory/preferences.schema.json",
   "title": "AgentLab preferences memory",
-  "description": "Workspace and per-user preferences guiding manager + agent behavior. Persisted under context.json#/preferences.",
+  "description": "Workspace and per-user preferences guiding manager + agent behavior. Persisted under the notebook payload key preferences (MCP notebook.patch).",
   "type": "object",
   "additionalProperties": false,
   "properties": {

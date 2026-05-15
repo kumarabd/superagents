@@ -454,14 +454,29 @@
 
   function tryFetchContext() {
     if (!window.location.protocol.startsWith("http")) return;
-    fetch("/api/context")
+    const statusEl = document.getElementById("loadStatus");
+    fetch("/api/merged")
       .then((r) => {
-        if (!r.ok) throw new Error(r.statusText);
+        if (!r.ok) throw new Error("merged " + r.status);
         return r.text();
       })
-      .then(parseAndLoad)
+      .then((text) => {
+        parseAndLoad(text);
+        if (statusEl) statusEl.textContent = "Loaded merged (context.json + notebook from DB).";
+      })
       .catch(() => {
-        /* optional server not running — user can load file */
+        fetch("/api/context")
+          .then((r) => {
+            if (!r.ok) throw new Error(r.statusText);
+            return r.text();
+          })
+          .then((text) => {
+            parseAndLoad(text);
+            if (statusEl) statusEl.textContent = "Loaded context.json only (notebook proxy off or failed).";
+          })
+          .catch(() => {
+            if (statusEl) statusEl.textContent = "";
+          });
       });
   }
 

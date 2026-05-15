@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentlab/memory/episodic.schema.json",
   "title": "AgentLab episodic memory entry",
-  "description": "One per question-answer episode. Lives inside context.json findings[]; this schema documents the canonical shape and is referenced by tooling.",
+  "description": "One per question-answer episode. Stored in the notebook payload findings[] (MCP notebook.load / notebook.patch); this schema documents the canonical shape.",
   "type": "object",
   "additionalProperties": false,
   "required": ["question", "answer", "artifacts", "timestamp"],

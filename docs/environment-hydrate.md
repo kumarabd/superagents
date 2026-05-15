@@ -2,17 +2,7 @@
 
 AgentLab can load **datalake** and **catalog** registrations from PostgreSQL and merge them into `.agentlab/context.json`. This keeps the same contract as manual registration ([`schemas/context.schema.json`](../schemas/context.schema.json)): [`hooks/scripts/policy-check.sh`](../hooks/scripts/policy-check.sh) and the skill still read **`data_sources[]`** and **`catalogs[]`** from the file.
 
-**Merge semantics:** Postgres still only supplies **`data_sources[]`** and **`catalogs[]`**. Those are **merged by `id`** with the file (file-only ids stay; same **`id`** → **DB wins**; new DB ids added). After that, hydrate **normalizes every top-level array** in the notebook (dedupe + stable sort) using these keys:
-
-| Array | Merge / dedupe key |
-|--------|-------------------|
-| `data_sources`, `catalogs`, `hypotheses`, `experiments` | `id` |
-| `artifacts` | `path` |
-| `findings` | composite: `question` and `timestamp` (both required by schema) |
-| `semantic_links` | composite: `from`, `to`, `kind` |
-| `open_questions` | string value (unique, sorted) |
-
-Objects without a stable key are kept at the **end** of object arrays (unchanged order among orphans). Other top‑level JSON keys (`preferences`, `term_cache`, …) are **unchanged**. If **`context.json` is missing**, hydrate seeds from [`templates/context.init.json`](../templates/context.init.json) via **`--template`** / **`AGENTLAB_CONTEXT_TEMPLATE`**—see `agentlab-provider hydrate --help`.
+**Merge semantics:** Postgres only supplies **`data_sources[]`** and **`catalogs[]`**. Those are **merged by `id`** with the file (file-only ids stay; same **`id`** → **DB wins**; new DB ids added). Hydrate then **dedupes and sorts only** `data_sources` and `catalogs` (stable key: `id`). **Notebook memory** (findings, hypotheses, preferences, …) is **not** in `context.json`; use the memory adapter MCP tools **`notebook.load`** / **`notebook.patch`** (see [`schemas/notebook.schema.json`](../schemas/notebook.schema.json) and [`docs/context-and-memory.md`](context-and-memory.md)).
 
 For how registrations relate to episodic/semantic memory in the notebook, see [`docs/context-and-memory.md`](context-and-memory.md).
 
@@ -142,7 +132,7 @@ If you run a **custom multi-DB gateway MCP**, register **one** MCP server in Cla
 
 - **Session registry:** After hydrate, the script pipes the **hook JSON on stdin** to **`agentlab-provider session-record`**, which **upserts** a row into **`agentlab_sessions`** (same Postgres as hydrate). Payload includes **`session_id`**, **`source`** (`startup`, `resume`, `clear`, `compact`), **`cwd`**, **`transcript_path`**, **`model`**, optional **`agent_type`**, plus a **`hook_payload`** JSONB snapshot. See Claude’s [SessionStart input](https://docs.anthropic.com/en/docs/claude-code/hooks#sessionstart). If **`session-record` fails**, stderr logs **non-fatal** and Claude still starts (**`hydrate` exit code** is still respected as the hook exit status).
 - **Scaffold:** the script creates **`$CLAUDE_PROJECT_DIR/.agentlab/artifacts/`** (queries, results, scripts, models, reports, plans, critiques, visualizations), **`snapshots/`**, before calling hydrate—so hydrate can create **`context.json`** on first run without the AgentLab skill.
-- **`context.json` present:** hydrate **upserts Postgres into `data_sources[]` / `catalogs[]`**, then **dedupes + sorts all notebook arrays** listed in the merge table above (unchanged keys: `preferences`, `term_cache`, …).
+- **`context.json` present:** hydrate **merges Postgres into `data_sources[]` / `catalogs[]`** and **dedupes + sorts** those two arrays only.
 - **`context.json` absent:** hydrate seeds from **`templates/context.init.json`**. The hook resolves `--template` in order: **`AGENTLAB_CONTEXT_TEMPLATE`** (must exist when set), else **`${CLAUDE_PLUGIN_ROOT}/templates/context.init.json`**, else this repo relative to [`session-hydrate.sh`](../hooks/scripts/session-hydrate.sh). If no template path exists and `context.json` is missing, hydrate fails loudly (needs a plugin checkout or **`AGENTLAB_CONTEXT_TEMPLATE`**).
 - **Fail-open:** if `AGENTLAB_PG_DSN` is unset, or the `agentlab-provider` binary cannot be found, the script exits **0** and logs one line to stderr so Claude still starts.
 - **Binary resolution:** set **`AGENTLAB_PROVIDER_BIN`** to the built executable (legacy: **`AGENTLAB_ENV_BIN`** is still honored by the hook), or place the binary at **`tools/agentlab-provider/agentlab-provider`** inside the plugin/repo checkout, or install `agentlab-provider` on `PATH`.
@@ -186,7 +176,7 @@ If you run a **custom multi-DB gateway MCP**, register **one** MCP server in Cla
      -c 'SELECT COUNT(*) FROM agentlab_data_sources; SELECT COUNT(*) FROM agentlab_catalogs;'
    ```
 
-   Rebuild **`agentlab-provider`** after pulling changes (`go build ...`). Run with **`AGENTLAB_HYDRATE_DEBUG=1`** to print row counts merged from Postgres and array lengths written to **`context.json`**.
+   Rebuild **`agentlab-provider`** after pulling changes (`go build ...`). Run with **`AGENTLAB_HYDRATE_DEBUG=1`** to print row counts merged from Postgres and final **`data_sources`** / **`catalogs`** lengths in **`context.json`**.
 
 10. **`relation "agentlab_sessions" does not exist`:** Init scripts run **only on first Postgres volume creation**. Existing volumes need the DDL applied once:
 

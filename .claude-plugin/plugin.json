@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agentlab",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AgentLab — agentic analytics over MCP datalakes and catalogs (orchestrator skill, specialists, hooks).",
   "author": {
     "name": "kumarabd",

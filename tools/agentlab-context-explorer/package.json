@@ -1,0 +1,8 @@
+{
+  "name": "agentlab-context-explorer",
+  "private": true,
+  "description": "Optional dependency for serve.c.js notebook proxy (PostgreSQL)",
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

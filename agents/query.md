@@ -59,7 +59,7 @@ Pick the sub-section matching the target datalake's `exec_paradigm`. You handle 
 - `task.question` — sub-question from the architect's plan (or directly from manager when no architect was used).
 - `task.target_datalake` — the `id` from `data_sources[]` to target. If absent, choose by tag/purpose match and explain.
 - `task.ds_brief` — optional domain-specialist markdown brief. Use **resolved terms** + **rules** to constrain.
-- `notebook_summary` — `data_sources`, `concept_mapping`, `term_cache`, `preferences.row_cap`.
+- `notebook_summary` — `data_sources`, notebook `concept_mapping`, `term_cache`, `preferences.row_cap` (from `notebook.load`).
 
 ## Output convention
 

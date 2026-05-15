@@ -240,34 +240,28 @@ Per-workspace state, created on first invocation by copying `templates/context.i
         └── visualizations/       ← narrative chart specs
 ```
 
-`context.json` shape (informal — full schema in `schemas/context.schema.json`):
+`context.json` (registrations only — `schemas/context.schema.json`):
 
 ```json
 {
-  "context_version": 2,
+  "context_version": 3,
   "use_case": null,
   "data_sources": [],
-  "catalogs": [],
+  "catalogs": []
+}
+```
+
+**Notebook payload** (memory adapter MCP `notebook.load` / `schemas/notebook.schema.json`):
+
+```json
+{
   "term_cache": {},
   "concept_mapping": {},
-  "hypotheses": [
-    { "id": "h1", "statement": "…", "status": "open|confirmed|rejected", "evidence": [], "created_at": "…" }
-  ],
-  "experiments": [
-    { "id": "e1", "name": "…", "design": "…", "status": "draft|running|complete", "artifacts": [], "created_at": "…" }
-  ],
-  "preferences": {
-    "default_time_window": "last_5_days",
-    "audience": "engineer",
-    "row_cap": 100,
-    "preferred_chart_kinds": ["line", "bar"]
-  },
-  "findings": [
-    { "question": "…", "answer": "…", "artifacts": [], "catalog_evidence": [], "critic_verdict": "pass|revise|reject", "timestamp": "…" }
-  ],
-  "semantic_links": [
-    { "from": "concept:team_form", "to": "concept:goal_differential", "kind": "correlates", "weight": 0.7, "evidence": ["finding:…"] }
-  ],
+  "preferences": { "row_cap": 100 },
+  "hypotheses": [],
+  "experiments": [],
+  "findings": [],
+  "semantic_links": [],
   "open_questions": [],
   "artifacts": []
 }
@@ -285,7 +279,7 @@ Per-workspace state, created on first invocation by copying `templates/context.i
 | Agents | `${CLAUDE_PLUGIN_ROOT}/agents/*.md` | n/a |
 | Policies | `${CLAUDE_PLUGIN_ROOT}/policies/*.md` | n/a |
 | Schemas | `${CLAUDE_PLUGIN_ROOT}/schemas/*.json`, `${CLAUDE_PLUGIN_ROOT}/memory/*.json` | n/a |
-| Notebook | n/a | `.agentlab/context.json` + `.agentlab/artifacts/...` |
+| Notebook | n/a | Memory adapter (`notebook.load` / `notebook.patch`) + `.agentlab/artifacts/...` + slim `.agentlab/context.json` |
 
 Cursor / non-plugin contexts use repo-relative paths.
 
@@ -323,7 +317,8 @@ datascientist/                            ← package root
 │   ├── semantic.schema.json
 │   └── preferences.schema.json
 ├── schemas/
-│   └── context.schema.json
+│   ├── context.schema.json
+│   └── notebook.schema.json
 ├── templates/
 │   └── context.init.json
 ├── README.md

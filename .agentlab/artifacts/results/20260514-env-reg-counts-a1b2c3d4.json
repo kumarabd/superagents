@@ -1,0 +1,17 @@
+{
+  "query_artifact": ".agentlab/artifacts/queries/20260514-env-reg-counts-a1b2c3d4.sql",
+  "agentlab_data_sources_count": 1,
+  "agentlab_catalogs_count": 1,
+  "data_sources_rows": [
+    {
+      "registration_id": "local_environment_sql",
+      "mcp_server": "postgres-environment"
+    }
+  ],
+  "catalogs_rows": [
+    {
+      "registration_id": "local_pgvector_catalog",
+      "mcp_server": "postgres-pgvector-catalog"
+    }
+  ]
+}

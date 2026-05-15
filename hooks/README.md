@@ -10,7 +10,7 @@ For every tool call matching `mcp__.*`, the `PreToolUse` hook runs `scripts/poli
 2. **Write-class veto (`policies/access.md`)** — denies `INSERT / UPDATE / DELETE / DROP / ALTER / CREATE / MERGE / TRUNCATE / GRANT / REVOKE` and Mongo write operators (`$set`, `$unset`, `$inc`, `$push`, `$pull`) unless **both**:
    - the datalake is tagged `writable` in registration, **and**
    - a fresh consent token exists at `.agentlab/.consent_token` (modified < 10 minutes ago).
-3. **PII heuristic (`policies/pii.md`)** — denies tool inputs that project name-heuristic PII fields (email, phone, ssn, dob, address, ip, card, password, etc.) unmasked. Strictness is controlled by `context.json#/preferences/pii_strictness` (`strict | default | lenient`).
+3. **PII heuristic (`policies/pii.md`)** — denies tool inputs that project name-heuristic PII fields (email, phone, ssn, dob, address, ip, card, password, etc.) unmasked. Strictness: set **`AGENTLAB_PII_STRICTNESS`** (`strict` \| `default` \| `lenient`) in the environment that launches Claude Code; if unset, the hook uses **`default`** (notebook `preferences` is not read by this shell hook).
 
 Hooks are loaded automatically when this plugin is enabled (Claude Code merges `hooks/hooks.json` from each enabled plugin with user/project hooks).
 

@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentlab/notebook.schema.json",
+  "title": "AgentLab notebook payload (memory adapter)",
+  "description": "Structured workspace memory returned by notebook.load / updated via notebook.patch. Stored in the memory-superagents agentlab_notebook table (not in context.json).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "term_cache": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "concept_mapping": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "preferences": { "$ref": "#/$defs/preferences" },
+    "hypotheses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/hypothesis" }
+    },
+    "experiments": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/experiment" }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "semantic_links": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/semanticLink" }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" }
+    }
+  },
+  "required": [
+    "term_cache",
+    "concept_mapping",
+    "preferences",
+    "hypotheses",
+    "experiments",
+    "findings",
+    "semantic_links",
+    "open_questions",
+    "artifacts"
+  ],
+  "$defs": {
+    "preferences": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default_time_window": { "type": "string" },
+        "audience": {
+          "type": "string",
+          "enum": ["executive", "analyst", "engineer", "researcher", "mixed"]
+        },
+        "row_cap": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 100
+        },
+        "preferred_chart_kinds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tone": {
+          "type": "string",
+          "enum": ["concise", "detailed", "narrative"]
+        },
+        "critic_threshold": {
+          "type": "string",
+          "enum": ["always", "default", "never"]
+        },
+        "pii_strictness": {
+          "type": "string",
+          "enum": ["strict", "default", "lenient"]
+        }
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "status", "created_at"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "statement": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["open", "confirmed", "rejected", "inconclusive"]
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "origin_agent": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "resolved_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "experiment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "status", "created_at"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "design": { "type": "string" },
+        "hypothesis_id": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "running", "complete", "abandoned"]
+        },
+        "artifacts": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "results_summary": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "completed_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["question", "answer", "artifacts", "timestamp"],
+      "properties": {
+        "question": { "type": "string" },
+        "answer": { "type": "string" },
+        "artifacts": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "catalog_evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "hypothesis_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "critic_verdict": {
+          "type": "string",
+          "enum": ["pass", "revise", "reject"]
+        },
+        "critique_artifact": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "superseded_by": { "type": "string", "format": "date-time" }
+      }
+    },
+    "semanticLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "kind"],
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "kind": { "type": "string" },
+        "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "description", "created_at"],
+      "properties": {
+        "path": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": [
+            "query",
+            "result",
+            "script",
+            "model",
+            "report",
+            "plan",
+            "critique",
+            "visualization",
+            "experiment"
+          ]
+        },
+        "description": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

@@ -1,14 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentlab/context.schema.json",
-  "title": "AgentLab context.json",
+  "title": "AgentLab context.json (registrations only)",
+  "description": "Workspace allowlist for datalakes and catalogs. Notebook memory (findings, hypotheses, preferences, …) lives in the AgentLab notebook store — use notebook.load / notebook.patch via the memory-superagents MCP adapter.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "context_version": {
       "type": "integer",
       "minimum": 1,
-      "default": 2
+      "default": 3
     },
     "use_case": {
       "oneOf": [
@@ -49,64 +50,9 @@
       "type": "array",
       "description": "Registered catalog MCP backends (retrieve semantics).",
       "items": { "$ref": "#/$defs/catalog" }
-    },
-    "term_cache": {
-      "type": "object",
-      "description": "Lazy DS resolutions reused across invocations.",
-      "additionalProperties": { "type": "string" }
-    },
-    "concept_mapping": {
-      "type": "object",
-      "description": "Maps abstract concepts to per-datalake expression hints (learned).",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": { "type": "string" }
-      }
-    },
-    "preferences": {
-      "$ref": "#/$defs/preferences"
-    },
-    "hypotheses": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/hypothesis" }
-    },
-    "experiments": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/experiment" }
-    },
-    "findings": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/finding" }
-    },
-    "semantic_links": {
-      "type": "array",
-      "description": "Lightweight typed edges between concepts forming a long-term knowledge graph.",
-      "items": { "$ref": "#/$defs/semanticLink" }
-    },
-    "open_questions": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "artifacts": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/artifact" }
     }
   },
-  "required": [
-    "context_version",
-    "use_case",
-    "data_sources",
-    "catalogs",
-    "term_cache",
-    "concept_mapping",
-    "preferences",
-    "hypotheses",
-    "experiments",
-    "findings",
-    "semantic_links",
-    "open_questions",
-    "artifacts"
-  ],
+  "required": ["context_version", "use_case", "data_sources", "catalogs"],
   "$defs": {
     "datalake": {
       "type": "object",
@@ -201,155 +147,6 @@
           "type": "object",
           "additionalProperties": true
         }
-      }
-    },
-    "preferences": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Workspace-level preferences. Merged with memory/preferences.schema.json.",
-      "properties": {
-        "default_time_window": { "type": "string" },
-        "audience": {
-          "type": "string",
-          "enum": ["executive", "analyst", "engineer", "researcher", "mixed"]
-        },
-        "row_cap": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 10000,
-          "default": 100
-        },
-        "preferred_chart_kinds": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "tone": {
-          "type": "string",
-          "enum": ["concise", "detailed", "narrative"]
-        },
-        "critic_threshold": {
-          "type": "string",
-          "enum": ["always", "default", "never"]
-        }
-      }
-    },
-    "hypothesis": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "statement", "status", "created_at"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "statement": { "type": "string" },
-        "status": {
-          "type": "string",
-          "enum": ["open", "confirmed", "rejected", "inconclusive"]
-        },
-        "evidence": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "References to finding ids, artifact paths, or catalog snippets."
-        },
-        "origin_agent": { "type": "string" },
-        "created_at": { "type": "string", "format": "date-time" },
-        "resolved_at": { "type": "string", "format": "date-time" }
-      }
-    },
-    "experiment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "name", "status", "created_at"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "name": { "type": "string" },
-        "design": { "type": "string" },
-        "hypothesis_id": { "type": "string" },
-        "status": {
-          "type": "string",
-          "enum": ["draft", "running", "complete", "abandoned"]
-        },
-        "artifacts": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "results_summary": { "type": "string" },
-        "created_at": { "type": "string", "format": "date-time" },
-        "completed_at": { "type": "string", "format": "date-time" }
-      }
-    },
-    "finding": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["question", "answer", "artifacts", "timestamp"],
-      "properties": {
-        "question": { "type": "string" },
-        "answer": { "type": "string" },
-        "artifacts": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "catalog_evidence": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Catalog passage/snippet IDs when Domain Specialist was used."
-        },
-        "hypothesis_ids": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "critic_verdict": {
-          "type": "string",
-          "enum": ["pass", "revise", "reject"]
-        },
-        "critique_artifact": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" },
-        "superseded_by": {
-          "type": "string",
-          "format": "date-time",
-          "description": "ISO timestamp of a newer finding that replaces this one."
-        }
-      }
-    },
-    "semanticLink": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["from", "to", "kind"],
-      "properties": {
-        "from": { "type": "string", "description": "Concept reference, e.g. concept:team_form" },
-        "to": { "type": "string" },
-        "kind": {
-          "type": "string",
-          "description": "e.g. correlates, causes, depends_on, derives_from, contradicts"
-        },
-        "weight": { "type": "number", "minimum": 0, "maximum": 1 },
-        "evidence": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "created_at": { "type": "string", "format": "date-time" }
-      }
-    },
-    "artifact": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["path", "type", "description", "created_at"],
-      "properties": {
-        "path": { "type": "string" },
-        "type": {
-          "type": "string",
-          "enum": [
-            "query",
-            "result",
-            "script",
-            "model",
-            "report",
-            "plan",
-            "critique",
-            "visualization",
-            "experiment"
-          ]
-        },
-        "description": { "type": "string" },
-        "created_at": { "type": "string", "format": "date-time" }
       }
     }
   }

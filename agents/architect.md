@@ -32,7 +32,7 @@ You never request raw data. You operate purely on the notebook summary, the user
 ## Inputs (from manager)
 
 - `task.question` — user's question.
-- `notebook_summary` — `use_case`, `data_sources` (id + paradigm + tags only), `catalogs`, recent `findings` (≤ 10), `hypotheses` (open), `preferences`.
+- `notebook_summary` — `use_case`, `data_sources` (id + paradigm + tags only), `catalogs`, recent **findings** (≤ 10) and open **hypotheses** from **`notebook.load`**, `preferences`.
 
 ## Output convention (markdown)
 

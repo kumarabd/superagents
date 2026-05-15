@@ -1,14 +1,15 @@
-# `context.json`: registration, memory kinds, and how they relate
+# `context.json` vs notebook memory
 
-`.agentlab/context.json` is the **workspace engagement notebook**: one JSON file per project that mixes (1) **registrations / connection context** for MCP backends, (2) **preferences**, and (3) **persisted memory** distilled from analyst runs.
+`.agentlab/context.json` is **registrations only**: datalake and catalog MCP allowlist entries plus optional `use_case` framing. It does **not** store findings, hypotheses, preferences, or other engagement memory.
 
-This document maps each top-level field to **datalake vs catalog context** vs **memory** (including cognitive-style buckets: episodic, semantic, procedural, reflective).
+**Notebook memory** (episodic, semantic, preferences, artifact index, experiments, open questions) lives in the **memory adapter** (memory-superagents): PostgreSQL table `agentlab_notebook`, accessed via MCP tools **`notebook.load`** and **`notebook.patch`** using the workspace absolute path as `project`.
 
 **Canonical schemas**
 
-- Engagement notebook: `schemas/context.schema.json`
-- Shared memory-shape docs (field-level): `memory/episodic.schema.json`, `memory/semantic.schema.json`, `memory/preferences.schema.json`
-- Orchestration (when things are read/written): `skills/agentlab/SKILL.md`, `agents/memory.md`
+- Registrations file: `schemas/context.schema.json`
+- Notebook payload (adapter): `schemas/notebook.schema.json`
+- Field-level docs (shapes unchanged): `memory/episodic.schema.json`, `memory/semantic.schema.json`, `memory/preferences.schema.json`
+- Orchestration: `skills/agentlab/SKILL.md`, `agents/memory.md`
 
 ---
 
@@ -16,135 +17,45 @@ This document maps each top-level field to **datalake vs catalog context** vs **
 
 | Term in this repo | Meaning |
 |-------------------|---------|
-| **Datalake context** | *Registration* rows in `data_sources[]` pointing at MCP servers that **execute** (SQL, PromQL, Cypher, etc.). Rows live **in external systems**. |
-| **Catalog context** | *Registration* rows in `catalogs[]` pointing at MCP servers that **retrieve semantics** (vector search, docs, glossary). Semantic *content* usually lives outside the notebook. |
-| **Notebook memory** | Fields whose values are authored or merged **by AgentLab** during engagement (answers, glossary cache, hypotheses, artifact index). |
-| **Working memory** | **Not stored in `context.json`.** Whatever the manager session keeps in-chat and passes in slim **dispatch slices** for the current question. |
+| **Datalake context** | `data_sources[]` in `context.json` — MCP servers that **execute**. |
+| **Catalog context** | `catalogs[]` in `context.json` — MCP servers that **retrieve semantics**. |
+| **Notebook memory** | JSON payload in the adapter (`notebook.load`): findings, term_cache, hypotheses, etc. |
+| **Working memory** | In-chat only; slim dispatch slices between agents. |
 
 ---
 
-## Field-by-field: memory or context?
-
-### System / framing
-
-| Field | Classification | Role |
-|-------|----------------|------|
-| `context_version` | Neither memory nor MCP context | Bump when the notebook **shape** evolves; tooling validation. |
-| `use_case` | **Hybrid** | Describes the workspace session (domain, description, timestamps). Helps route tone and framing; resembles “product mode” meta-context. |
-
----
-
-### External systems (registrations — not “learned narrative memory”)
-
-These entries **do not store your business rows or catalog snippets**. They only record **allowed MCP backends** (`id`, `mcp_server`, `exec_paradigm`/`retrieval`, `tags`, …) so hooks and orchestration stay consistent.
-
-| Field | Classification | Separate? |
-|-------|----------------|-----------|
-| `data_sources[]` | **Datalake execution context** | Yes — registers **execute-capable** backends (Postgres, Prometheus, …). |
-| `catalogs[]` | **Catalog retrieval context** | Yes — registers **retrieve-capable** backends (docs, vectors, glossary). |
-
-Treat these as **connectivity allowlists**, not summaries of facts about the domain. Facts from catalogs arrive at runtime via MCP tools into the session; distilled glossaries optionally land in `term_cache`.
-
----
-
-### Notebook memory fields (explicit in `agents/memory.md`)
-
-These are **`context.json`** fields that match the librarian `memory` agent’s three canonical kinds:
-
-#### Episodic memory (what happened, when)
-
-| Field | Stored in schema | Produced / consumed by |
-|-------|------------------|------------------------|
-| `findings[]` | `finding` (`schemas/context.schema.json`) | Manager appends after `narrative` (often after optional `critic`). Each finding is roughly one **episode**: question → answer → artifact refs → timestamps; optional critic linkage. |
-
-Documented episodic slice: `memory/episodic.schema.json` mirrors `finding` semantics.
-
-Related but not structured “successful episodes”:
-
-| Field | Notes |
-|-------|-------|
-| `open_questions[]` | Loose strings capturing unresolved prompts (e.g. critic `reject` paths), not full episodic objects. |
-
-#### Semantic memory (stable meaning and structure in this workspace)
+## `context.json` fields (registrations + framing)
 
 | Field | Role |
 |-------|------|
-| `term_cache` | Canonical phrase ↔ concept/resolution snippets (typically from Domain Specialist merges). Speeds grounding; skips redundant DS. |
-| `concept_mapping` | Abstract concept → `{ datalake_id → expression hints }`, learned/filled by Query. |
-| `hypotheses[]` | Falsifiable claims and status (`open`, `confirmed`, …) with optional evidence refs. |
-| `semantic_links[]` | Lightweight edges between conceptual labels (`from` / `to` / `kind`) with optional evidence refs. |
+| `context_version` | Schema generation; bump when the **registrations** shape changes (v3 = slim file). |
+| `use_case` | Optional workspace framing (domain, description, timestamps). |
+| `data_sources[]` | Datalake allowlist (`mcp_server` must match Claude MCP config). |
+| `catalogs[]` | Catalog allowlist. |
 
-Documented collectively in `memory/semantic.schema.json` (conceptual grouping of sibling keys).
-
-#### Preferences memory (behavioral knobs)
-
-| Field | Role |
-|-------|------|
-| `preferences` | Workspace defaults (`row_cap`, `audience`, `critic_threshold`, `tone`, chart prefs, PII strictness if set). |
-
-Documented in `memory/preferences.schema.json`.
+Hooks (`policy-check.sh`) read **only** this file for MCP allowlist and datalake `writable` tags. **PII strictness** is not in `context.json` anymore: set **`AGENTLAB_PII_STRICTNESS`** (`strict` \| `default` \| `lenient`) in the environment that launches Claude Code, or rely on default behavior.
 
 ---
 
-### Index and lineage (supports several memory narratives)
+## Notebook payload (adapter)
 
-| Field | Classification |
-|-------|----------------|
-| `artifacts[]` | **Artifact index**: paths + `type` + description + timestamps. Indexes queries, scripts, reports, critiques, Vega-Lite specs, result summaries, … |
-| `experiments[]` | Tracks experiment designs/results metadata (often surfaced by `methods`). Fits **semantic** + **episodic** hybrid (structured runs with artifact pointers). |
+Same logical fields as before, now under `notebook` in **`notebook.load`** / merge keys in **`notebook.patch`**. See `schemas/notebook.schema.json`.
 
----
+| Bucket | Keys in `notebook` |
+|--------|---------------------|
+| Episodic | `findings[]`, loosely `open_questions[]` |
+| Semantic | `term_cache`, `concept_mapping`, `hypotheses[]`, `semantic_links[]` |
+| Preferences | `preferences` (includes optional `pii_strictness` for documentation; hooks use env unless you duplicate for tooling) |
+| Index | `artifacts[]`, `experiments[]` |
 
-## Cognitive buckets: episodic, semantic, procedural, reflective
-
-The repo intentionally names **three** librarian kinds (`episodic`, `semantic`, `preferences`). Popular cognitive labels overlap as follows inside **this** codebase.
-
-### Episodic
-
-**Primary**
-
-- **`findings[]`** — definitive episode ledger for answered questions (+ optional `critic_verdict` / `critique_artifact` when the critic path ran and merged).
-
-### Semantic
-
-**Primary**
-
-- **`term_cache`**, **`concept_mapping`**, **`hypotheses[]`**, **`semantic_links[]`** — distilled meaning and learned bridges for this workspace.
-- **`use_case`** (when set) — stable framing of domain / purpose.
-
-**Secondary**
-
-- **`artifacts[]`** when indexing stable reference assets you treat as canon for the workspace.
-
-### Procedural
-
-There is **no top-level `procedural_memory`** array today.
-
-“How we do repeatable work” maps to:
-
-- **Static procedures** bundled with the plugin: `skills/*.md`, `agents/*.md`, `policies/*.md`.
-- **Per-workspace procedures** emerging as reusable **artifacts**, e.g.:
-  - `artifacts[]` entries with `type: "script"` (analysis scripts run in a Python sandbox)
-  - recurring `query` artifacts and Vega-Lite specs under `.agentlab/artifacts/visualizations/` (referenced by `artifacts[]`).
-
-So procedural memory is split: **immutable team playbooks** in the repo vs **replayable runnable assets** indexed from the notebook.
-
-### Reflective
-
-There is **no separate `reflections[]`** table.
-
-Closest implementation:
-
-1. **`critic` agent outputs** persisted as **`critique` artifacts**; when merged, **`findings[].critique_artifact`** points at the file and **`findings[].critic_verdict`** ∈ `pass | revise | reject`.
-
-2. **Hypothesis updates** (`hypotheses[]` status) after critic-aligned passes.
-
-Reflective traces are **thin by design**:
-
-- For **`reject`**, the skill often avoids persisting a normal finding; items may land in **`open_questions`** instead.
-
-Many findings **omit** `critic_verdict` / `critique_artifact` when the critic step was **skipped** (common for trivial single-source runs) or when the manager did not merge critic output into the finding.
+Cognitive mapping (episodic / semantic / procedural / reflective) is unchanged in meaning; only **storage location** moved from file to adapter. Procedural playbooks remain in `skills/` and `agents/`; reflective output remains critique-linked **findings** and **hypotheses** updates inside the notebook payload.
 
 ---
 
-## Quick reference diagram
+## Quick reference
+
+```
+context.json          →  allowlist + use_case (git-friendly, hook-local)
+agentlab_notebook     →  full notebook JSON (MCP: notebook.load / notebook.patch)
+.agentlab/artifacts/  →  files on disk; paths indexed in notebook.artifacts[]
+```

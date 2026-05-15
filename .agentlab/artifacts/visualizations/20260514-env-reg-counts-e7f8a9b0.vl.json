@@ -1,0 +1,69 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "title": {
+    "text": "AgentLab Registry Row Counts",
+    "subtitle": "Rows in agentlab_data_sources and agentlab_catalogs",
+    "fontSize": 14,
+    "subtitleFontSize": 11
+  },
+  "width": 300,
+  "height": 200,
+  "data": {
+    "values": [
+      {
+        "table": "agentlab_data_sources",
+        "count": 1,
+        "registration_id": "local_environment_sql",
+        "mcp_server": "postgres-environment"
+      },
+      {
+        "table": "agentlab_catalogs",
+        "count": 1,
+        "registration_id": "local_pgvector_catalog",
+        "mcp_server": "postgres-pgvector-catalog"
+      }
+    ]
+  },
+  "mark": {
+    "type": "bar",
+    "tooltip": true,
+    "cornerRadiusEnd": 4
+  },
+  "encoding": {
+    "y": {
+      "field": "table",
+      "type": "nominal",
+      "title": "Registry Table",
+      "axis": {
+        "labelFontSize": 12,
+        "titleFontSize": 12
+      }
+    },
+    "x": {
+      "field": "count",
+      "type": "quantitative",
+      "title": "Row Count",
+      "scale": {"domain": [0, 2]},
+      "axis": {
+        "tickMinStep": 1,
+        "labelFontSize": 11,
+        "titleFontSize": 12
+      }
+    },
+    "color": {
+      "field": "table",
+      "type": "nominal",
+      "legend": null,
+      "scale": {
+        "domain": ["agentlab_data_sources", "agentlab_catalogs"],
+        "range": ["#4c72b0", "#55a868"]
+      }
+    },
+    "tooltip": [
+      {"field": "table", "type": "nominal", "title": "Table"},
+      {"field": "count", "type": "quantitative", "title": "Row Count"},
+      {"field": "registration_id", "type": "nominal", "title": "registration_id"},
+      {"field": "mcp_server", "type": "nominal", "title": "mcp_server"}
+    ]
+  }
+}

@@ -18,7 +18,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:  "hydrate",
-				Usage: "Merge Postgres into data_sources/catalogs by id; then dedupe/sort every notebook array per context.schema (hypotheses, findings, …). Seeds from --template when missing.",
+				Usage: "Merge Postgres into data_sources/catalogs by id; dedupe/sort those arrays. Notebook memory is external (notebook MCP). Seeds from --template when missing.",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "project-dir",

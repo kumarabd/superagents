@@ -69,7 +69,8 @@ func Run(ctx context.Context, dsn, contextPath, templatePath string, dryRun bool
 	if err := applyArrayMerges(doc, patch); err != nil {
 		return err
 	}
-	normalizeAllNotebookArrays(doc)
+	normalizeRegistrationArrays(doc)
+	stripNotebookKeysFromContext(doc)
 	debugMergedLens(doc)
 
 	if dryRun {
@@ -93,18 +94,33 @@ func Run(ctx context.Context, dsn, contextPath, templatePath string, dryRun bool
 	return atomicWrite(contextPath, out)
 }
 
-// normalizeAllNotebookArrays dedupes and sorts every top-level array in context.schema.json
-// using the same keys as hydrate merge (hypotheses, findings, artifacts, …).
-func normalizeAllNotebookArrays(doc map[string]interface{}) {
-	normalizationKeys := []string{
-		"data_sources",
-		"catalogs",
+// normalizeRegistrationArrays dedupes and sorts data_sources and catalogs only.
+// Notebook arrays live in the memory adapter (notebook.load / notebook.patch).
+// stripNotebookKeysFromContext removes engagement-memory keys that belong in the
+// memory adapter (notebook.load / notebook.patch), not in slim context.json.
+// Agents or older flows may still write these here; hydrate re-normalizes on each run.
+func stripNotebookKeysFromContext(doc map[string]interface{}) {
+	strip := []string{
+		"term_cache",
+		"concept_mapping",
+		"preferences",
 		"hypotheses",
 		"experiments",
 		"findings",
 		"semantic_links",
-		"artifacts",
 		"open_questions",
+		"artifacts",
+		"open_hypotheses", // legacy drift
+	}
+	for _, k := range strip {
+		delete(doc, k)
+	}
+}
+
+func normalizeRegistrationArrays(doc map[string]interface{}) {
+	normalizationKeys := []string{
+		"data_sources",
+		"catalogs",
 	}
 	for _, k := range normalizationKeys {
 		raw, ok := doc[k]
@@ -143,15 +159,7 @@ func applyArrayMerges(doc map[string]interface{}, patch map[string][]interface{}
 // Incoming wins on duplicate keys. Stable sort orders are applied after merge.
 func mergeContextArray(field string, existing []interface{}, incoming []interface{}) []interface{} {
 	switch field {
-	case "open_questions":
-		return mergeOpenQuestions(existing, incoming)
-	case "findings":
-		return mergeObjectsByStableKey(existing, incoming, findingStableKey)
-	case "semantic_links":
-		return mergeObjectsByStableKey(existing, incoming, semanticLinkStableKey)
-	case "artifacts":
-		return mergeObjectsByStableKey(existing, incoming, artifactPathStableKey)
-	case "data_sources", "catalogs", "hypotheses", "experiments":
+	case "data_sources", "catalogs":
 		return mergeObjectsByStableKey(existing, incoming, idStableKey)
 	default:
 		// Postgres patch only touches known schema arrays; future keys fallback to concatenation-ish:
@@ -169,27 +177,6 @@ func mergeContextArray(field string, existing []interface{}, incoming []interfac
 func idStableKey(m map[string]interface{}) string {
 	s, _ := m["id"].(string)
 	return s
-}
-
-func artifactPathStableKey(m map[string]interface{}) string {
-	s, _ := m["path"].(string)
-	return s
-}
-
-func findingStableKey(m map[string]interface{}) string {
-	q, _ := m["question"].(string)
-	ts, _ := m["timestamp"].(string)
-	if ts == "" {
-		ts, _ = m["created_at"].(string)
-	}
-	return q + "\x00" + ts
-}
-
-func semanticLinkStableKey(m map[string]interface{}) string {
-	from, _ := m["from"].(string)
-	to, _ := m["to"].(string)
-	kind, _ := m["kind"].(string)
-	return from + "\x01" + to + "\x01" + kind
 }
 
 func mergeObjectsByStableKey(existing []interface{}, incoming []interface{}, keyFn func(map[string]interface{}) string) []interface{} {
@@ -240,41 +227,6 @@ func mergeObjectsByStableKey(existing []interface{}, incoming []interface{}, key
 		out = append(out, by[k])
 	}
 	out = append(out, orphans...)
-	return out
-}
-
-func mergeOpenQuestions(existing []interface{}, incoming []interface{}) []interface{} {
-	seen := make(map[string]struct{})
-	var ordered []string
-	add := func(s string) {
-		if s == "" {
-			return
-		}
-		if _, ok := seen[s]; ok {
-			return
-		}
-		seen[s] = struct{}{}
-		ordered = append(ordered, s)
-	}
-	for _, raw := range existing {
-		s, ok := raw.(string)
-		if !ok {
-			continue
-		}
-		add(s)
-	}
-	for _, raw := range incoming {
-		s, ok := raw.(string)
-		if !ok {
-			continue
-		}
-		add(s)
-	}
-	sort.Strings(ordered)
-	out := make([]interface{}, len(ordered))
-	for i, s := range ordered {
-		out[i] = s
-	}
 	return out
 }
 

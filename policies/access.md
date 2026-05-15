@@ -29,7 +29,7 @@ Default behavior:
 | `INSERT` / `UPDATE` / `DELETE` / DDL / equivalent | refuse | require **per-call user confirmation** in chat |
 | Long-running / unbounded scan | refuse without `LIMIT`/aggregation | refuse without `LIMIT`/aggregation |
 
-`query` is the only agent that may issue write-class operations, and only after manager consent has been recorded as a finding entry.
+`query` is the only agent that may issue write-class operations, and only after manager consent has been recorded (e.g. in a **finding** via `notebook.patch`).
 
 ## Manager bootstrap checks
 
@@ -44,7 +44,7 @@ On first per-question dispatch the manager:
 When an agent or the manager refuses an action:
 
 - Respond inline to the user with the rule violated and a one-line remediation.
-- Persist the attempt under `open_questions` (not `findings`).
+- Persist the attempt under notebook **`open_questions`** (not `findings`).
 - Never silently downgrade — write attempts must not be re-issued as reads.
 
 ## Multi-tenant / shared workspaces

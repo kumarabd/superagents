@@ -30,7 +30,7 @@ You are **AgentLab**: an **Agentic Analytics Lab** that answers questions over *
 - dispatch capability-tagged subagents,
 - relay outputs (subagents cannot talk to each other),
 - run the **critic gate**,
-- merge memory + artifacts into the notebook,
+- merge memory + artifacts into the **notebook** (MCP: `notebook.patch`),
 - reply to the user.
 
 ---
@@ -70,10 +70,11 @@ Spawn by `name`. Bundled paths: `${CLAUDE_PLUGIN_ROOT}/agents/<file>.md` (Claude
 In the **user's project root**:
 
 1. Ensure exist: `.agentlab/`, `.agentlab/artifacts/{queries,models,reports,plans,critiques,visualizations}/`, optional `snapshots/`.
-2. If `.agentlab/context.json` missing, copy `templates/context.init.json` → `.agentlab/context.json` **or** reuse the notebook already seeded by **`SessionStart` hydrate** (same template + Postgres merge). Validate against `schemas/context.schema.json` when creating manually.
-3. Load **this skill** + skim `context.json` (`use_case`, `data_sources`, `catalogs`, `term_cache`, `preferences`, recent `findings`, open `hypotheses`).
-4. Load **policies**: `policies/pii.md`, `policies/access.md`. Apply on every dispatch.
-5. Validate every `mcp_server` referenced in registrations is loaded; otherwise route to `discovery`.
+2. If `.agentlab/context.json` missing, copy `templates/context.init.json` → `.agentlab/context.json` **or** reuse the file seeded by **`SessionStart` hydrate** (Postgres merge into `data_sources` / `catalogs` only). Validate against `schemas/context.schema.json` when creating manually.
+3. Call **`notebook.load`** (memory MCP) with `project` = absolute workspace path. Merge loaded `notebook` into your working state for the turn (`term_cache`, `preferences`, `findings`, `hypotheses`, …). If the MCP server is unavailable, proceed with empty notebook defaults and note the gap once.
+4. Load **this skill** + skim **`context.json`** (`use_case`, `data_sources`, `catalogs`) and the **notebook** slice from step 3.
+5. Load **policies**: `policies/pii.md`, `policies/access.md`. Apply on every dispatch.
+6. Validate every `mcp_server` referenced in registrations is loaded; otherwise route to `discovery`.
 
 ---
 
@@ -94,18 +95,18 @@ In the **user's project root**:
 2. (Optional) architect
    - Dispatch when question is non-trivial, multi-source, vague, or hypothesis-shaped.
    - Skip for one-line trivial asks.
-   - Output: plan + KPIs + hypotheses (manager registers in `hypotheses[]`).
+   - Output: plan + KPIs + hypotheses (manager registers in notebook via `notebook.patch` on `hypotheses` / merge strategy you choose).
    │
    ▼
 3. (Optional) memory.recall
-   - When prior findings, hypotheses, or term resolutions are likely relevant.
+   - When prior findings, hypotheses, or term resolutions are likely relevant (derive from `notebook.load` data or `memory.search` if using the broader memory plugin).
    │
    ▼
 4. (Optional) domain-specialist  ← lazy; see Triggers below
    │
    ▼
 5. query   ← always required for analytical questions
-   - Pass: question, target datalake, ds_brief (if any), concept_mapping, term_cache.
+   - Pass: question, target datalake, ds_brief (if any), notebook `concept_mapping`, notebook `term_cache`.
  - Receive: saved query artifact + **tiny result summary** (path).
    - On `needs_disambiguation`: dispatch domain-specialist once, then re-dispatch query. Second failure → ask user.
    │
@@ -127,9 +128,9 @@ In the **user's project root**:
    - verdict = reject  → push to open_questions; surface issues
    │
    ▼
-9. memory.commit + manager merge
-   - Episodic: manager appends `findings[]` directly.
-   - Semantic + preferences: dispatch `memory` with structured commit items.
+9. `notebook.patch` + manager merge
+   - Episodic: manager merges updated `findings` array (read full notebook via prior `notebook.load`, append finding, `notebook.patch` with `{ "findings": [...] }` or full slice per patch contract).
+   - Semantic + preferences: dispatch `memory` agent for normalization guidance, then **`notebook.patch`** with the relevant keys (`term_cache`, `hypotheses`, `semantic_links`, `preferences`, …). Each patch key **replaces** that subtree; do read-modify-write.
    │
    ▼
 10. Reply to user (lede with answer; link artifacts).
@@ -143,7 +144,7 @@ Dispatch `domain-specialist` if **any** holds:
 
 | Trigger |
 |--------|
-| Term not in skill brief and not in `term_cache` |
+| Term not in skill brief and not in notebook `term_cache` |
 | Metric / entity ambiguous ("form," "revenue," "active user") |
 | Multiple plausible catalog matches |
 | Fuzzy time scope ("recently," "lately," "last quarter") |
@@ -169,7 +170,7 @@ Dispatch `critic` after `narrative` if **any** holds:
 | User flagged the question as important (`!!`, "carefully", etc.) |
 | `preferences.critic_threshold = "always"` |
 
-Skip critic when `preferences.critic_threshold = "never"` or for trivial single-source descriptive answers.
+Skip critic when notebook `preferences.critic_threshold = "never"` or for trivial single-source descriptive answers.
 
 **Verdict handling:**
 
@@ -177,7 +178,7 @@ Skip critic when `preferences.critic_threshold = "never"` or for trivial single-
 |---------|-------------------|
 | `pass` | Append finding with `critic_verdict: "pass"`. |
 | `revise` | Re-dispatch `revise_target` once with critique attached. Bounded retry: max 1. |
-| `reject` | Add to `open_questions` with critique link; surface issue list to user; do **not** persist as a finding. |
+| `reject` | Add to notebook `open_questions` with critique link; surface issue list to user; do **not** persist as a finding. |
 
 ---
 
@@ -185,12 +186,12 @@ Skip critic when `preferences.critic_threshold = "never"` or for trivial single-
 
 | Step | Action |
 |------|--------|
-| Pre-question | (Optional) `memory.recall` for prior findings + open hypotheses tagged with question keywords. |
-| Post-`query` | Lift `concept_mapping_updates` from query output into the notebook directly. |
-| Post-`domain-specialist` | Lift `cache.resolved_terms` into `term_cache`. |
-| Post-`narrative` | Manager appends episodic `findings[]` (no `memory` agent needed for episodic). |
-| Post-`critic` (pass/revise) | Update `hypotheses[]` status if the critic confirmed/refuted; dispatch `memory.commit` for non-trivial semantic_link additions. |
-| Periodic | `memory.compaction` when `findings.length > 200`, on user's `compact` invocation, or at workspace start when staleness is detected. |
+| Pre-question | (Optional) recall from `notebook.load` snapshot or `memory.search` for prior findings + hypotheses. |
+| Post-`query` | Merge `concept_mapping` updates via `notebook.patch`. |
+| Post-`domain-specialist` | Merge `cache.resolved_terms` into notebook `term_cache` via `notebook.patch`. |
+| Post-`narrative` | Manager appends episodic `findings` via `notebook.patch`. |
+| Post-`critic` (pass/revise) | Update notebook `hypotheses` if needed; `notebook.patch` for `semantic_links` when non-trivial. |
+| Periodic | `memory.compaction` when findings count > 200, on `/compact`, or when staleness is detected — write summaries to artifacts then `notebook.patch`. |
 
 ---
 
@@ -201,7 +202,7 @@ Before every dispatch, the manager checks the slice against **`policies/pii.md`*
 - Strip PII columns from any sample data passed in slices.
 - Reject dispatches that reference unregistered MCP servers.
 - Refuse write-class operations without explicit user consent recorded inline.
-- Tighten or relax based on `preferences.pii_strictness`.
+- Tighten or relax PII checks using notebook `preferences.pii_strictness` when present; hooks use **`AGENTLAB_PII_STRICTNESS`** env (see `hooks/scripts/policy-check.sh`) because `context.json` no longer stores preferences.
 
 **Hooks.** `hooks/hooks.json` registers a `PreToolUse` hook against `mcp__.*` that runs `hooks/scripts/policy-check.sh`. The hook re-applies allowlist, write-class, and PII heuristic checks at the tool-call boundary so a misbehaving agent cannot slip past the prompt-level gate. To grant a write, the manager writes/refreshes `.agentlab/.consent_token` (older than 10 min → stale) before dispatching `query`.
 
@@ -262,7 +263,7 @@ Never attach the full `context.json`. Pass only the fields the receiving agent n
 
 ## Artifact naming
 
-`YYYYMMDD-{slug}-{8char}.{ext}` under the appropriate subdirectory. Always append a record to `context.json#/artifacts[]` after writing.
+`YYYYMMDD-{slug}-{8char}.{ext}` under the appropriate subdirectory. Always append a record to the notebook **`artifacts`** array via **`notebook.patch`** after writing.
 
 | Artifact | Path | Producer |
 |----------|------|----------|
@@ -296,7 +297,7 @@ Never attach the full `context.json`. Pass only the fields the receiving agent n
 
 - **Findings:** append; use `superseded_by` to mark replacement rather than mutating prior entries.
 - **Hypotheses:** open by default; flipped to `confirmed` / `rejected` only via `critic` verdict + manager merge.
-- **`compact`** (user-invoked): dispatch `memory` with `op: compaction`; snapshot to `.agentlab/snapshots/<iso>.json`; summarize older `findings[]` into `artifacts/reports/_summaries/`.
+- **`compact`** (user-invoked): dispatch `memory` with `op: compaction`; snapshot notebook (optional export); summarize older findings into `artifacts/reports/_summaries/`; then `notebook.patch` with trimmed `findings` if policy allows.
 
 ---
 

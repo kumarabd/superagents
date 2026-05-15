@@ -128,8 +128,15 @@ fi
 # without a wrapping function call) of any of these names is denied.
 pii_names='email|e_mail|mail|phone|mobile|tel|ssn|nin|national_id|passport|aadhaar|pan|dob|date_of_birth|birthdate|addr|address|street|postcode|zip|ip|ip_addr|client_ip|card|pan_number|cvv|iban|account_no|password|pwd|secret|token|api_key'
 
-# Skip if the workspace asks for lenient strictness.
-strictness="$(jq -r '.preferences.pii_strictness // "default"' "$context_path" 2>/dev/null)"
+# PII strictness: notebook stores preferences; context.json may omit them.
+# Prefer env AGENTLAB_PII_STRICTNESS (strict|default|lenient) when set; else jq from context.json.
+strictness="${AGENTLAB_PII_STRICTNESS:-}"
+if [ -z "$strictness" ]; then
+  strictness="$(jq -r '.preferences.pii_strictness // "default"' "$context_path" 2>/dev/null)"
+fi
+if [ "$strictness" = "null" ] || [ -z "$strictness" ]; then
+  strictness="default"
+fi
 
 if [ "$strictness" != "lenient" ]; then
   if printf '%s' "$tool_input_text" | grep -qiE "(^|[^a-zA-Z0-9_])($pii_names)([^a-zA-Z0-9_(]|$)"; then

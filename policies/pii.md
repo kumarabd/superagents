@@ -13,13 +13,13 @@ A column / field is treated as PII if **any** of:
 
 1. The catalog tags it (`pii: true`, `sensitivity: high`, etc.).
 2. The column name matches a heuristic regex (see Appendix A).
-3. The user marks it via `preferences.pii_strictness = "strict"` and the column appears in the configured strict-list.
+3. The user marks it via notebook `preferences.pii_strictness = "strict"` (or manager sets strict policy) and the column appears in the configured strict-list.
 
 ## Hard rules
 
 1. **No raw PII into model context.** Bounded results returned to the manager / agents must mask, hash, or omit PII columns. Aggregations are preferred (`COUNT`, `AVG`, bucketed distributions).
 2. **No PII in artifacts.** Saved queries, reports, and visualization specs must not include unmasked PII values. Replace literals with placeholders or aggregate predicates.
-3. **Refuse on explicit request unless overridden.** If a user explicitly asks for raw PII, the manager confirms in writing (in chat), records the consent in `findings[].answer`, and proceeds only if `preferences.pii_strictness != "strict"`.
+3. **Refuse on explicit request unless overridden.** If a user explicitly asks for raw PII, the manager confirms in writing (in chat), records the consent in a **finding** (`notebook.patch` on `findings`), and proceeds only if notebook `preferences.pii_strictness != "strict"`.
 4. **Catalog flags are authoritative.** When the catalog marks a column as PII, the manager treats that flag as truth — `query` will reject queries selecting that column unmasked.
 5. **Never log PII.** Manager debug output, hook logs, and error messages must not echo raw PII.
 
@@ -31,9 +31,9 @@ A column / field is treated as PII if **any** of:
 - `domain-specialist` — surfaces PII flags from catalog into its brief (`### Caveats: PII columns: …`).
 - `methods` — operates on bounded results that have already passed `query`'s gate; does not re-fetch raw PII.
 - `critic` — flags any answer that appears to leak raw PII as `reject`.
-- `memory` — never persists raw PII into `term_cache`, `concept_mapping`, or `findings`.
+- `memory` — never persists raw PII into notebook `term_cache`, `concept_mapping`, or `findings`.
 
-## Strictness levels (`preferences.pii_strictness`)
+## Strictness levels (notebook `preferences.pii_strictness`; hook: `AGENTLAB_PII_STRICTNESS`)
 
 | Level | Behavior | Hook enforcement |
 |------|----------|-------------------|

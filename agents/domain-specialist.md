@@ -78,7 +78,7 @@ From manager: `task.question` + `notebook_summary` (catalogs list, term_cache, u
 
 ## Outputs
 
-Markdown brief to manager. Manager may lift `cache` into `.agentlab/context.json#/term_cache` and route catalog-flagged PII into the next dispatch slice for `query`.
+Markdown brief to manager. Manager may lift `cache` into the notebook **`term_cache`** via **`notebook.patch`** and route catalog-flagged PII into the next dispatch slice for `query`.
 
 ## Failure modes
 

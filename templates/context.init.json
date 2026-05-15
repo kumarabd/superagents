@@ -1,17 +1,6 @@
 {
-  "context_version": 2,
+  "context_version": 3,
   "use_case": null,
   "data_sources": [],
-  "catalogs": [],
-  "term_cache": {},
-  "concept_mapping": {},
-  "preferences": {
-    "row_cap": 100
-  },
-  "hypotheses": [],
-  "experiments": [],
-  "findings": [],
-  "semantic_links": [],
-  "open_questions": [],
-  "artifacts": []
+  "catalogs": []
 }
